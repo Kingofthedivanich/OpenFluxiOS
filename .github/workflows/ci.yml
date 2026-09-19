@@ -3,9 +3,12 @@ name: CI
 # Compile-checks the app + the packet-tunnel extension on a real macOS
 # runner, since neither Xcode nor the iOS SDK exist on any other OS -- this
 # is the only way to catch a broken build here without a Mac in the loop.
-# Builds for the Simulator with signing disabled, so it needs no
-# certificates/provisioning; it verifies the code compiles and links, not
-# that the app actually runs or that the VPN extension works on-device.
+# Builds for a generic iOS device (not the Simulator: build-openflux.sh's
+# liboflux.a is arm64-device-only, so a Simulator destination fails to link
+# even when the Swift/Go code is fine -- see the OTHER_LDFLAGS/HEADER_SEARCH
+# hookup in project.yml). Signing is disabled, so it needs no certificates
+# or provisioning profile. Verifies compile+link only, not that the app
+# runs or that the VPN extension actually works on-device.
 
 on:
   push:
@@ -40,10 +43,10 @@ jobs:
       - name: Generate the Xcode project
         run: xcodegen generate
 
-      - name: Build (Simulator, unsigned)
+      - name: Build (generic iOS device, unsigned)
         run: |
           xcodebuild build \
             -project OpenFlux.xcodeproj \
             -scheme OpenFlux \
-            -destination 'generic/platform=iOS Simulator' \
+            -destination 'generic/platform=iOS' \
             CODE_SIGNING_ALLOWED=NO
