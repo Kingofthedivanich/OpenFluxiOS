@@ -7,3 +7,6 @@ Lib/*.h
 OpenFlux.xcodeproj/
 DerivedData/
 openflux-version.txt
+
+# App Store Connect API private key — never commit
+*.p8
