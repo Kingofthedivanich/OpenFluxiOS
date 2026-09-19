@@ -1,0 +1,49 @@
+name: CI
+
+# Compile-checks the app + the packet-tunnel extension on a real macOS
+# runner, since neither Xcode nor the iOS SDK exist on any other OS -- this
+# is the only way to catch a broken build here without a Mac in the loop.
+# Builds for the Simulator with signing disabled, so it needs no
+# certificates/provisioning; it verifies the code compiles and links, not
+# that the app actually runs or that the VPN extension works on-device.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout OpenFluxiOS
+        uses: actions/checkout@v4
+
+      - name: Checkout OpenFlux-WebGui (Go core)
+        uses: actions/checkout@v4
+        with:
+          repository: Kingofthedivanich/OpenFlux-WebGui
+          path: OpenFlux-WebGui
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: OpenFlux-WebGui/go.mod
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Build the Go static library (liboflux.a)
+        run: ./build-openflux.sh "$GITHUB_WORKSPACE/OpenFlux-WebGui"
+
+      - name: Generate the Xcode project
+        run: xcodegen generate
+
+      - name: Build (Simulator, unsigned)
+        run: |
+          xcodebuild build \
+            -project OpenFlux.xcodeproj \
+            -scheme OpenFlux \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO
