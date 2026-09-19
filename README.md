@@ -1,53 +1,55 @@
-# OpenFlux iOS app
+# OpenFluxiOS (fork)
 
-SwiftUI client that links the OpenFlux Go core (`liboflux.a`) and runs the
-SOCKS5 tunnel over the Yandex.Docs transport on `127.0.0.1:1080`.
+## Description
 
-## Layout
-- `project.yml` — XcodeGen project definition (run `xcodegen generate` to produce `OpenFlux.xcodeproj`).
-- `OpenFlux/` — Swift sources, bridging header, Info.plist, assets.
-- `Lib/liboflux.a`, `Lib/liboflux.h` — Go static library + generated header (copied from `../output/ios`).
-- `ExportOptions.plist` — App Store export options (team 8GQH8GQ252, automatic signing).
+SwiftUI iOS client for the core fork
+[Kingofthedivanich/OpenFlux-WebGui](https://github.com/Kingofthedivanich/OpenFlux-WebGui),
+split out into its own repo (previously lived at that repo's `ios-app/`) to
+mirror the paired
+[Android client](https://github.com/Kingofthedivanich/OpenFluxAndroid)'s
+separate-repo setup. Links the core's Go transport as a static library
+(`liboflux.a`) rather than talking to it over a network protocol.
 
-## Go bridge API (liboflux.h)
-- `OpenFluxStartClient(transportType, url, socksAddr, maxToken, maxUid)` — start the client (returns 0 on success).
-- `OpenFluxStop()` — stop transport + SOCKS5 listener.
-- `OpenFluxIsRunning()` / `OpenFluxIsConnected()` — state.
-- `OpenFluxStatsJSON()` / `OpenFluxReadLog()` — stats + log tail (free with `OpenFluxFreeString`).
-- `OpenFluxSetPeerKey(key)` / `OpenFluxSetPSK(secret)` / `OpenFluxSetAllowPlaintext(on)` —
-  optional encryption, matching `--peer-key`/`--psk-file`/`--allow-plaintext` on the CLI.
-  Call before `OpenFluxStartClient`; an empty peer key means plaintext. The
-  packet-tunnel extension (`OpenFluxStartPacketTunnel`) reads the same three
-  setters, since it runs in its own process and doesn't share state with the
-  app -- `VPNController` passes peer key/PSK through `providerConfiguration`.
+## How it works
 
-## Build + archive + export (one command)
-From the repo root:
+- Two ways to run a tunnel: a local SOCKS5 proxy (`127.0.0.1:<port>`, via
+  `OpenFluxStartClient`), or a system-wide VPN through a
+  `NEPacketTunnelProvider` network extension (`OpenFluxTunnel/`,
+  `OpenFluxStartPacketTunnel`) that routes the whole device.
+- Transports: Yandex.Docs and MAX (`oneme`).
+- Encryption is optional: an empty peer-key field means plaintext (the app
+  passes `--allow-plaintext` automatically); paste the exit node's public
+  key to turn on a Noise NKpsk0 handshake, with an optional PSK to further
+  close that tunnel. The VPN extension runs in its own process, so its
+  peer-key/PSK cross over through `providerConfiguration` rather than
+  shared globals.
+
+## Install guide
+
+Requires Xcode, [xcodegen](https://github.com/yonaskolb/XcodeGen)
+(`brew install xcodegen`), and Go (version from the core repo's `go.mod`).
+
+Build the Go static library from a checkout of the core repo:
+
 ```bash
-./scripts/build_ios_app.sh
+./build-openflux.sh /path/to/OpenFlux-WebGui
 ```
-Produces `ios-app/build/export/OpenFlux.ipa`, distribution-signed for the App Store.
 
-## Upload to TestFlight
-1. Create the app record once: App Store Connect > My Apps > **+** > New App,
-   bundle id `com.p1neapplexpress-saharev.openflux`, platform iOS.
-2. Upload the IPA (either option):
-   ```bash
-   # A) app-specific password (appleid.apple.com)
-   xcrun altool --upload-app -f ios-app/build/export/OpenFlux.ipa -t ios \
-     -u YOUR_APPLE_ID -p xxxx-xxxx-xxxx-xxxx
+Installs `Lib/liboflux.a` and the cgo-generated `Lib/liboflux.h`.
 
-   # B) App Store Connect API key (.p8 in ~/.appstoreconnect/private_keys/)
-   xcrun altool --upload-app -f ios-app/build/export/OpenFlux.ipa -t ios \
-     --apiKey KEY_ID --apiIssuer ISSUER_ID
-   ```
-   Or open `ios-app/build/OpenFlux.xcarchive` in Xcode Organizer and use **Distribute App**.
-3. The build appears in TestFlight after Apple processing (a few minutes).
+Generate and open the Xcode project:
 
-## Notes / follow-ups
-- Two ways to run the tunnel: a **local** SOCKS5 proxy (the in-app **Test**
-  button fetches the exit IP through it to prove traffic flows), or the
-  **System VPN** toggle, which installs a `NEPacketTunnelProvider` extension
-  (`OpenFluxTunnel/`) that routes the whole device.
-- Deployment target: iOS 15.0 (SwiftUI App lifecycle). The Go lib is built with
-  `-miphoneos-version-min=13.0`, so it is compatible.
+```bash
+xcodegen generate
+open OpenFlux.xcodeproj
+```
+
+Full release pipeline (build the lib, archive, export an App Store IPA):
+
+```bash
+./build-app.sh /path/to/OpenFlux-WebGui
+```
+
+Produces `build/export/OpenFlux.ipa`. See
+[DISTRIBUTION.ru.md](DISTRIBUTION.ru.md) for the TestFlight upload steps
+(team `8GQH8GQ252`, bundle id `com.p1neapplexpress-saharev.openflux`).

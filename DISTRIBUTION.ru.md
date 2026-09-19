@@ -5,11 +5,14 @@
 
 ## Что сделано
 
-1. **Go-ядро → статическая библиотека.** Добавлен cgo-слой экспортов
-   (`../cmd/openflux/export_ios.go`, сборка по тегу `ios`): `OpenFluxStartClient`,
+1. **Go-ядро → статическая библиотека.** cgo-слой экспортов живёт в паре с
+   ядром — [`cmd/openflux/export_ios.go`](https://github.com/Kingofthedivanich/OpenFlux-WebGui/blob/main/cmd/openflux/export_ios.go)
+   в репозитории core (сборка по тегу `ios`): `OpenFluxStartClient`,
    `OpenFluxStop`, `OpenFluxIsRunning`, `OpenFluxIsConnected`,
-   `OpenFluxStatsJSON`, `OpenFluxReadLog`, `OpenFluxFreeString`.
-   Сборка: `../scripts/build_ios.sh` → `../output/ios/liboflux.a` (+ авто-заголовок `liboflux.h`).
+   `OpenFluxStatsJSON`, `OpenFluxReadLog`, `OpenFluxFreeString`,
+   `OpenFluxSetPeerKey`, `OpenFluxSetPSK`, `OpenFluxSetAllowPlaintext`.
+   Сборка: `./build-openflux.sh /path/to/OpenFlux-WebGui` → `Lib/liboflux.a`
+   (+ авто-заголовок `liboflux.h`).
 2. **iOS-приложение (SwiftUI, XcodeGen).** Экран с полем Yandex.Docs URL,
    Start/Stop, индикатор состояния, живой лог и кнопка Test (проверяет тоннель
    запросом через локальный SOCKS5 `127.0.0.1:1080`). Линкует `liboflux.a`.
@@ -35,22 +38,21 @@
 
 ## Полная сборка одной командой
 
-Из корня репозитория:
 ```bash
-./scripts/build_ios_app.sh
+./build-app.sh /path/to/OpenFlux-WebGui
 ```
-Результат: `ios-app/build/export/OpenFlux.ipa` (подписан для App Store).
+Результат: `build/export/OpenFlux.ipa` (подписан для App Store).
 
 ## Загрузка в TestFlight
 
 ```bash
-xcrun altool --upload-app -f ios-app/build/export/OpenFlux.ipa -t ios \
+xcrun altool --upload-app -f build/export/OpenFlux.ipa -t ios \
   --apiKey <KEY_ID> --apiIssuer <ISSUER_ID>
 ```
 Билд появляется в TestFlight через несколько минут после обработки Apple.
 
 ### Новый билд
-Перед каждой новой загрузкой поднять номер сборки в `ios-app/project.yml`:
+Перед каждой новой загрузкой поднять номер сборки в `project.yml`:
 ```yaml
 settings:
   base:
@@ -77,9 +79,9 @@ Apple не принимает повторно тот же номер сборк
 - Возможно региональное снятие (Apple удаляла обходные приложения из ряда сторов
   по требованию регуляторов).
 - Тоннелирование через Яндекс.Документы / MAX вероятно нарушает их ToS.
-- Приложение поднимает **локальный** SOCKS5; системное туннелирование всего
-  устройства потребует отдельного таргета `NEPacketTunnelProvider` — в этот билд
-  не входит.
+- Помимо локального SOCKS5, есть системное туннелирование всего устройства
+  через таргет `NEPacketTunnelProvider` (`OpenFluxTunnel/`) — требует
+  включённой capability Network Extensions в профиле подписи.
 
 ## Безопасность
 

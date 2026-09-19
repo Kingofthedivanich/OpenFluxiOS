@@ -1,0 +1,9 @@
+.DS_Store
+
+# iOS build artifacts
+build/
+Lib/*.a
+Lib/*.h
+OpenFlux.xcodeproj/
+DerivedData/
+openflux-version.txt
